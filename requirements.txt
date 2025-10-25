@@ -1,0 +1,6 @@
+tensorflow>=2.11.0
+numpy>=1.24.0
+scipy>=1.9.0
+Pillow>=9.0.0
+# Note: tkinter is included with standard Python installations on Windows (no pip package).
+# Ghostscript (required by some image backends) must be installed separately from: https://www.ghostscript.com/

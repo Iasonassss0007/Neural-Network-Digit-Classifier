@@ -1,32 +1,25 @@
-# gui.py
 import tkinter as tk
 from tkinter import Button, Label
 import tensorflow as tf
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 from scipy import ndimage
 import io
 
-# Tell Pillow where to find your Ghostscript executable.
-# Make sure this path is correct for your installation.
-Image.Image.gs_binary = r"C:\Program Files\gs\gs10.06.0\bin\gswin64c.exe"
-
-# Load the trained model
 try:
     model = tf.keras.models.load_model('digit_recognizer_model.keras')
 except IOError:
     print("Model not found! Please run main.py first to train and save the model.")
     exit()
 
-# --- Functions ---
-
 def clear_canvas():
-    """Clears the canvas."""
     canvas.delete("all")
+    # clear the PIL image as well
+    global pil_image, pil_draw
+    pil_image.paste(0, [0, 0, pil_image.size[0], pil_image.size[1]])
     prediction_label.config(text="Prediction: -")
 
 def process_image(img):
-    """Crops, centers, and resizes the image to look like MNIST data."""
     data = np.array(img)
     if not np.any(data): return None
     rows = np.any(data, axis=1)
@@ -52,32 +45,14 @@ def process_image(img):
     return centered_box
 
 def predict_digit():
-    """Captures the canvas directly, processes the image, and predicts the digit."""
-    # --- THIS IS THE FIX --- 💡
-    # Force the canvas to update and process all pending drawing events.
-    canvas.update()
-
-    # Save the canvas content to an in-memory PostScript object
-    ps = canvas.postscript(colormode='gray')
-    ps_data = io.BytesIO(ps.encode('utf-8'))
-    
-    try:
-        img = Image.open(ps_data)
-        img = img.convert('L') # Ensure grayscale mode
-        img = img.resize((280, 280))
-    except Exception as e:
-        print(f"ERROR: Could not process canvas image with Ghostscript. Details: {e}")
-        return
-
+    # use the PIL image we track while drawing (avoid Ghostscript/postscript)
+    img = pil_image.copy()
     processed_img_array = process_image(img)
-    
     if processed_img_array is None:
         prediction_label.config(text="Prediction: - (Canvas empty)")
         return
-    
     final_image = processed_img_array / 255.0
     final_image = final_image.reshape(1, 28, 28, 1)
-    
     prediction = model.predict(final_image)
     predicted_digit = np.argmax(prediction)
     prediction_label.config(text=f"Prediction: {predicted_digit}")
@@ -89,9 +64,10 @@ def start_drawing(event):
 def draw(event):
     global last_x, last_y
     canvas.create_line((last_x, last_y, event.x, event.y), fill='white', width=25, capstyle=tk.ROUND, smooth=tk.TRUE)
+    # draw on the PIL image as well (coordinates align with the canvas size)
+    pil_draw.line((last_x, last_y, event.x, event.y), fill=255, width=25)
     last_x, last_y = event.x, event.y
 
-# --- UI Setup ---
 window = tk.Tk()
 window.title("Digit Recognizer")
 canvas = tk.Canvas(window, width=280, height=280, bg="black", cursor="cross")
@@ -104,4 +80,7 @@ predict_button.grid(row=2, column=0, pady=10, padx=10, sticky="ew")
 clear_button.grid(row=2, column=1, pady=10, padx=10, sticky="ew")
 canvas.bind("<Button-1>", start_drawing)
 canvas.bind("<B1-Motion>", draw)
+# create a PIL image and draw object to mirror canvas strokes (black background, white strokes)
+pil_image = Image.new('L', (280, 280), color=0)
+pil_draw = ImageDraw.Draw(pil_image)
 window.mainloop()
