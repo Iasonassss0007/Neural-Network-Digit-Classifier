@@ -14,7 +14,6 @@ except IOError:
 
 def clear_canvas():
     canvas.delete("all")
-    # clear the PIL image as well
     global pil_image, pil_draw
     pil_image.paste(0, [0, 0, pil_image.size[0], pil_image.size[1]])
     prediction_label.config(text="Prediction: -")
@@ -45,7 +44,6 @@ def process_image(img):
     return centered_box
 
 def predict_digit():
-    # use the PIL image we track while drawing (avoid Ghostscript/postscript)
     img = pil_image.copy()
     processed_img_array = process_image(img)
     if processed_img_array is None:
@@ -64,7 +62,6 @@ def start_drawing(event):
 def draw(event):
     global last_x, last_y
     canvas.create_line((last_x, last_y, event.x, event.y), fill='white', width=25, capstyle=tk.ROUND, smooth=tk.TRUE)
-    # draw on the PIL image as well (coordinates align with the canvas size)
     pil_draw.line((last_x, last_y, event.x, event.y), fill=255, width=25)
     last_x, last_y = event.x, event.y
 
@@ -80,7 +77,7 @@ predict_button.grid(row=2, column=0, pady=10, padx=10, sticky="ew")
 clear_button.grid(row=2, column=1, pady=10, padx=10, sticky="ew")
 canvas.bind("<Button-1>", start_drawing)
 canvas.bind("<B1-Motion>", draw)
-# create a PIL image and draw object to mirror canvas strokes (black background, white strokes)
 pil_image = Image.new('L', (280, 280), color=0)
 pil_draw = ImageDraw.Draw(pil_image)
+
 window.mainloop()
